@@ -1,34 +1,16 @@
-`include "src/store.sv"
-
 module top (
-    input logic rx,
-    input logic sck,
-    input logic cs,
-    input logic CLK,
+    input  logic CLK, //FPGA's clock
 
-    output logic tx,
 	output logic LCD_CLK,//LCD clock. 
 	output logic LCD_DEN,
 	output logic [4:0] LCD_R,
 	output logic [5:0] LCD_G,
-	output logic [4:0] LCD_B
+	output logic [4:0] LCD_B,
 );
-
-logic [15:0] pixel;
-logic [7:0] pixel_address;
 
 logic [9:0] x = 0, y = 0;
+logic [7:0] section = 160;
 logic [9:0] active_len = 480, max_len = 525, active_height = 272, max_height = 285;
-
-store grab_from_mem (
-    .rx(rx),
-    .sck(sck),
-    .cs(cs),
-    .tx(tx),
-    .raddr(pixel_address),
-    .rdata(pixel),
-    .CLK(CLK)
-);
 
 assign LCD_CLK = CLK;
 
@@ -46,11 +28,19 @@ always@ (posedge LCD_CLK) begin
 
     if ((x < active_len) && (y < active_height)) begin
         LCD_DEN <= 1;
-        pixel_address <= (x[3:0] * 16) + (y[3:0]);
-        LCD_R <= pixel[15:11]; 
-        LCD_G <= pixel[10:5];
-        LCD_B <= pixel[4:0];
-
+        if (x < section) begin
+            LCD_R <= 5'b11111; 
+            LCD_G <= 6'b000000;
+            LCD_B <= 5'b00000;
+        end else if (x < section * 2) begin
+            LCD_R <= 5'b00000;
+            LCD_G <= 6'b111111; 
+            LCD_B <= 5'b00000;
+        end else if (x < section * 3) begin
+            LCD_R <= 5'b00000;
+            LCD_G <= 6'b000000;
+            LCD_B <= 5'b11111;
+        end 
     end else begin 
         LCD_DEN <= 0;
         LCD_R <= 5'b00000; 

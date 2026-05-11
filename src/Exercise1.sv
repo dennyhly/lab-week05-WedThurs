@@ -1,33 +1,27 @@
-`include "src/store.sv"
+`include "src/sprite_buf_EX1.sv"
 
 module top (
-    input logic rx,
-    input logic sck,
-    input logic cs,
-    input logic CLK,
-
-    output logic tx,
+    input  logic CLK, //FPGA's clock
+ 
 	output logic LCD_CLK,//LCD clock. 
 	output logic LCD_DEN,
 	output logic [4:0] LCD_R,
 	output logic [5:0] LCD_G,
-	output logic [4:0] LCD_B
+	output logic [4:0] LCD_B,
 );
 
 logic [15:0] pixel;
 logic [7:0] pixel_address;
 
 logic [9:0] x = 0, y = 0;
+logic [4:0] section = 16, sprite_x = 0, sprite_y = 0;
 logic [9:0] active_len = 480, max_len = 525, active_height = 272, max_height = 285;
 
-store grab_from_mem (
-    .rx(rx),
-    .sck(sck),
-    .cs(cs),
-    .tx(tx),
+
+dp_buffer first_sprite (
+    .clk(CLK),
     .raddr(pixel_address),
-    .rdata(pixel),
-    .CLK(CLK)
+    .rdata(pixel)
 );
 
 assign LCD_CLK = CLK;
@@ -46,6 +40,7 @@ always@ (posedge LCD_CLK) begin
 
     if ((x < active_len) && (y < active_height)) begin
         LCD_DEN <= 1;
+        //grab pixel from sprite_buf
         pixel_address <= (x[3:0] * 16) + (y[3:0]);
         LCD_R <= pixel[15:11]; 
         LCD_G <= pixel[10:5];

@@ -2,9 +2,6 @@
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
 
-// SPI Defines
-// We are going to use SPI 0, and allocate it to the following GPIO pins
-// Pins can be changed, see the GPIO function select table in the datasheet for information on GPIO assignments
 #define SPI_PORT spi0
 #define PIN_SCK 2
 #define PIN_TX 3
@@ -30,13 +27,10 @@ const uint16_t mario[256] = {
     0x0000, 0x6204, 0x6204, 0x6204, 0x6204, 0x6204, 0x0000, 0x0000, 0x6204, 0x6204, 0x6204, 0x6204, 0x6204, 0x0000, 0x0000, 0x0000
 };
 
-//pixel_address <= (x[3:0] * 16) + (y[3:0]);
-
 int main()
 {
     stdio_init_all();
 
-    // SPI initialisation. This example will use SPI at 1MHz.
     spi_init(SPI_PORT, 1000*1000);
     spi_set_format(SPI_PORT, 16, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
     gpio_set_function(PIN_SCK,  GPIO_FUNC_SPI);
@@ -44,16 +38,35 @@ int main()
     gpio_set_function(PIN_RX, GPIO_FUNC_SPI);
     gpio_init(PIN_CS);
     gpio_set_dir(PIN_CS, GPIO_OUT);
-    // Chip select is active-low, so we'll initialise it to a driven-high state
 
+     volatile struct {
+        unsigned int state : 2;
+    } m;
 
     while (true) {
         gpio_put(PIN_CS, 0);
-        for (int i = 0; i < 256; ++i) {
-            uint16_t pixel = mario[i];
-            spi_write16_blocking(SPI_PORT, &pixel, 1);
+        for (int row = 0; row < 16; row++) {
+            for (int col = 0; col < 16; col++) {
+                uint16_t pixel;
+                switch (m.state) {
+                    case 0:
+                        pixel = mario[row * 16 + col]; 
+                        break;
+                    case 1:
+                        pixel = mario[(15 - col) * 16 + row];
+                        break;
+                    case 2:
+                        pixel = mario[(15 - row) * 16 + (15 - col)];
+                        break;
+                    case 3: 
+                        pixel = mario[col * 16 + (15 - row)];
+                        break;
+                }
+                spi_write16_blocking(SPI_PORT, &pixel, 1);
+            }
         }
         gpio_put(PIN_CS, 1);
+        ++m.state;
         sleep_ms(1000);
     }
 }
